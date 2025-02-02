@@ -22,8 +22,8 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@metaplex-foundation/umi": "^0.8.2",
     "@metaplex-foundation/mpl-token-metadata": "^3.3.0",
+    "@metaplex-foundation/umi": "^0.8.2",
     "@metaplex-foundation/umi-bundle-defaults": "^0.8.2",
     "@metaplex-foundation/umi-uploader-irys": "^0.8.2",
     "@nestjs/common": "^11.0.1",
