@@ -19,6 +19,7 @@ import {
   // createGenericFile,
   generateSigner,
   percentAmount,
+  publicKey,
   publicKey as UMIPublicKey,
 } from "@metaplex-foundation/umi";
 import { getExplorerLink } from "@solana-developers/helpers";
@@ -26,6 +27,8 @@ import { getExplorerLink } from "@solana-developers/helpers";
 import { createNft } from "@metaplex-foundation/mpl-token-metadata";
 // import { console } from 'inspector';
 import { Logger } from "@nestjs/common";
+import { das } from "@metaplex-foundation/mpl-core-das";
+
 
 @Injectable()
 export class SolanaService implements OnModuleInit {
@@ -45,7 +48,21 @@ export class SolanaService implements OnModuleInit {
     return "TWA";
   }
 
-  getNFTCollection(): string {
+  async getNFTCollection(): Promise<string> {
+
+    
+    const collection = publicKey("BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8");
+    
+    Logger.log(collection, "COLLECTION");
+    const assets = await this.solanaConfig.umi.rpc.getAssetsByGroup({
+      groupKey: 'collection',
+      groupValue: '4RcsVbzbCMMVpAgnLX1EWgDaHYunRZCYVQTbg6sLzKBd',
+    });
+
+    // const assets = await das.getCollection(this.solanaConfig.umi, collection );
+
+    Logger.log(assets, "ASSETS");
+
     return "NTAT";
   }
 
@@ -165,7 +182,7 @@ export class SolanaService implements OnModuleInit {
       Logger.log(this.solanaConfig.umi.identity.publicKey, "PUBLIC KEY");
 
       const nftMetadata = {
-        name: "Test Part 2 Collection 22",
+        name: "Test Part 2 Collection 223",
         description: "dwadawd description",
         image: img,
       };

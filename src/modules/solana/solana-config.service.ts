@@ -11,6 +11,7 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { keypairIdentity } from "@metaplex-foundation/umi";
 import { mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
 import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
+import { dasApi } from "@metaplex-foundation/digital-asset-standard-api";
 
 @Injectable()
 export class SolanaConfigService {
@@ -55,6 +56,7 @@ export class SolanaConfigService {
     this.umi
       .use(keypairIdentity(umiKeypair))
       .use(mplTokenMetadata())
-      .use(irysUploader());
+      .use(irysUploader())
+      .use(dasApi());
   }
 }

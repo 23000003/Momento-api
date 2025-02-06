@@ -7,6 +7,7 @@ import { BlogModule } from "./modules/blog/blog.module";
 import { UserModule } from "./modules/user/user.module";
 import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 import { ConfigModule } from "@nestjs/config";
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ConfigModule } from "@nestjs/config";
     BlogModule,
     UserModule,
     MarketplaceModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

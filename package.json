@@ -22,10 +22,13 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@metaplex-foundation/digital-asset-standard-api": "^1.0.5",
+    "@metaplex-foundation/mpl-core-das": "^0.0.3",
     "@metaplex-foundation/mpl-token-metadata": "^3.3.0",
     "@metaplex-foundation/umi": "^0.8.2",
     "@metaplex-foundation/umi-bundle-defaults": "^0.8.2",
     "@metaplex-foundation/umi-uploader-irys": "^0.8.2",
+    "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -37,6 +40,7 @@
     "@solana/web3.js": "^1.98.0",
     "@supabase/supabase-js": "^2.48.1",
     "bs58": "^6.0.0",
+    "cache-manager": "^6.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
