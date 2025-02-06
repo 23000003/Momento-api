@@ -7,6 +7,12 @@ import { MintNFTDTO } from "./dto/mint-nft.dto";
 export class SolanaController {
   constructor(private readonly solanaService: SolanaService) {}
 
+  @Get("nft-collection")
+  async getNFTCollection() {
+    const x = await this.solanaService.getNFTCollection();
+    return { collection: x };
+  }
+
   @Get("wallet-token-balance/:userAddress")
   async getWalletTokenBalance(@Param("userAddress") userAddress: string) {
     const x = await this.solanaService.getWalletTokenBalance(userAddress);

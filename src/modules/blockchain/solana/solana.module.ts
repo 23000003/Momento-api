@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
-import { SolanaConfigService } from "./solana-config.service";
+import { BlockchainConfigService } from "../blockchain-config.service";
 import { SolanaService } from "./solana.service";
 import { SolanaController } from "./solana.controller";
 
 @Module({
   controllers: [SolanaController],
-  providers: [SolanaConfigService, SolanaService],
+  providers: [BlockchainConfigService, SolanaService],
 })
 export class SolanaModule {}

@@ -4,12 +4,14 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import * as postgres from "postgres";
 
 @Injectable()
-export class DrizzleService {
+export class Drizzle {
   constructor(private readonly configService: ConfigService) {}
 
   getDrizzleDB() {
     const connectionString = this.configService.get("DATABASE_URL") as string;
-    const client = postgres(connectionString, { prepare: false });
+    const client = postgres(connectionString, {
+      prepare: false,
+    });
     return drizzle(client);
   }
 }

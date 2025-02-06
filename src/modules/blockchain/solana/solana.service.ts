@@ -9,32 +9,39 @@ import {
 import {
   LAMPORTS_PER_SOL,
   PublicKey,
+  SendTransactionError,
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
-import { SolanaConfigService } from "./solana-config.service";
+import { BlockchainConfigService } from "../blockchain-config.service";
 import { ClaimTokenDTO } from "./dto/claim-token.dto";
 import { MintNFTDTO } from "./dto/mint-nft.dto";
 import {
   // createGenericFile,
   generateSigner,
   percentAmount,
+  publicKey,
   publicKey as UMIPublicKey,
 } from "@metaplex-foundation/umi";
 import { getExplorerLink } from "@solana-developers/helpers";
 // import { promises as fs } from "fs";
-import { createNft } from "@metaplex-foundation/mpl-token-metadata";
 // import { console } from 'inspector';
 import { Logger } from "@nestjs/common";
+// import { das } from "@metaplex-foundation/mpl-core-das";
+import {
+  createNft,
+  findMetadataPda,
+  verifyCollectionV1,
+} from "@metaplex-foundation/mpl-token-metadata";
 
 @Injectable()
 export class SolanaService implements OnModuleInit {
   private dappATA: Account;
 
-  constructor(private readonly solanaConfig: SolanaConfigService) {}
+  constructor(private readonly sol: BlockchainConfigService) {}
 
   async onModuleInit() {
-    this.dappATA = await this.solanaConfig.dappATA;
+    this.dappATA = await this.sol.dappATA;
   }
 
   async getWalletTokenBalance(
@@ -42,9 +49,9 @@ export class SolanaService implements OnModuleInit {
   ): Promise<{ SOL: number; MMT: number } | string> {
     try {
       const getUserATA = await getOrCreateAssociatedTokenAccount(
-        this.solanaConfig.connection,
-        this.solanaConfig.dappKeyPair,
-        this.solanaConfig.mintToken,
+        this.sol.connection,
+        this.sol.dappKeyPair,
+        this.sol.mintToken,
         new PublicKey(userAddress),
         false,
         "finalized",
@@ -54,7 +61,7 @@ export class SolanaService implements OnModuleInit {
         TOKEN_2022_PROGRAM_ID,
       );
 
-      const solBalance = await this.solanaConfig.connection.getBalance(
+      const solBalance = await this.sol.connection.getBalance(
         new PublicKey(userAddress),
       );
 
@@ -72,7 +79,19 @@ export class SolanaService implements OnModuleInit {
     return "TWA";
   }
 
-  getNFTCollection(): string {
+  async getNFTCollection(): Promise<string> {
+    const collection = publicKey(
+      "BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8",
+    );
+
+    Logger.log(collection, "COLLECTION");
+    const assets = await this.sol.umi.rpc.getAssetsByGroup({
+      groupKey: "collection",
+      groupValue: "BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8",
+    });
+
+    Logger.log(assets, "ASSETS");
+
     return "NTAT";
   }
 
@@ -83,9 +102,9 @@ export class SolanaService implements OnModuleInit {
 
     try {
       const sendToATA = await getOrCreateAssociatedTokenAccount(
-        this.solanaConfig.connection,
-        this.solanaConfig.dappKeyPair,
-        this.solanaConfig.mintToken,
+        this.sol.connection,
+        this.sol.dappKeyPair,
+        this.sol.mintToken,
         sendToAddress,
         false,
         "finalized",
@@ -98,20 +117,20 @@ export class SolanaService implements OnModuleInit {
       Logger.log(sendToATA);
 
       const { blockhash } =
-        await this.solanaConfig.connection.getLatestBlockhash("finalized");
+        await this.sol.connection.getLatestBlockhash("finalized");
 
       const transaction = new Transaction();
 
       transaction.recentBlockhash = blockhash;
-      transaction.feePayer = this.solanaConfig.dappKeyPair.publicKey;
+      transaction.feePayer = this.sol.dappKeyPair.publicKey;
 
       const lamports =
-        await this.solanaConfig.connection.getMinimumBalanceForRentExemption(5);
+        await this.sol.connection.getMinimumBalanceForRentExemption(5);
 
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: sendToAddress,
-          toPubkey: this.solanaConfig.dappKeyPair.publicKey,
+          toPubkey: this.sol.dappKeyPair.publicKey,
           lamports,
         }),
       );
@@ -119,17 +138,17 @@ export class SolanaService implements OnModuleInit {
       transaction.add(
         createTransferCheckedInstruction(
           this.dappATA.address,
-          this.solanaConfig.mintToken, // mint
+          this.sol.mintToken, // mint
           sendToATA.address, // destination
-          this.solanaConfig.dappKeyPair.publicKey, // owner of source account
+          this.sol.dappKeyPair.publicKey, // owner of source account
           amount * LAMPORTS_PER_SOL, // amount to transfer
           9, // decimals of my created token
-          [this.solanaConfig.dappKeyPair, sendToAddress], // signers
+          [this.sol.dappKeyPair, sendToAddress], // signers
           TOKEN_2022_PROGRAM_ID,
         ),
       );
 
-      transaction.partialSign(this.solanaConfig.dappKeyPair);
+      transaction.partialSign(this.sol.dappKeyPair);
 
       const serializedTransaction = transaction.serialize({
         requireAllSignatures: false,
@@ -161,6 +180,7 @@ export class SolanaService implements OnModuleInit {
       "https://wfiljmekszmbpzaqaxys.supabase.co/storage/v1/object/public/images//pfp.jpg";
 
     try {
+      Logger.log(this.sol.umi.identity.publicKey, "PUBLIC KEY");
       // Fetch the image from the URL
       // const res = await fetch(img);
 
@@ -169,7 +189,6 @@ export class SolanaService implements OnModuleInit {
 
       Logger.log("Convert image");
       // Logger.log(buffer, "BUFFER");
-      Logger.log(this.solanaConfig.umi.identity.publicKey, "PUBLIC KEY");
       // Create a generic file for upload
       // const file = createGenericFile(buffer, "test-image.jpg", {
       //     contentType: "image/jpeg",
@@ -177,32 +196,28 @@ export class SolanaService implements OnModuleInit {
 
       Logger.log("Generic file created");
 
-      // const [imageUMI] = await this.solanaConfig.umi.uploader.upload([file]);
+      // const [imageUMI] = await this.sol.umi.uploader.upload([file]);
 
       Logger.log("Image uploaded to UMI");
 
-      // const uri = await this.solanaConfig.umi.uploader.uploadJson({
+      // const uri = await this.sol.umi.uploader.uploadJson({
       //     name: "My Collection",
       //     description: "My Collection description",
       //     image: imageUMI, // Use the uploaded image URI
       // });
 
-      /**
-       * Create a
-       */
-      const collectionMint = generateSigner(this.solanaConfig.umi);
-
-      Logger.log(this.solanaConfig.umi.identity.publicKey, "PUBLIC KEY");
+      // Unique mintAddress for the nft
+      const nftMintAddress = generateSigner(this.sol.umi);
 
       const nftMetadata = {
-        name: "Test Part 2 Collection 2232",
-        description: "dohod description",
+        name: "VERIFY IT #@#",
+        description: "WASSUPP",
         image: img,
       };
 
       Logger.log("Metadata JSON uploading");
 
-      const uri = await this.solanaConfig.umi.uploader.uploadJson(nftMetadata);
+      const uri = await this.sol.umi.uploader.uploadJson(nftMetadata);
 
       Logger.log(uri, "MINT");
 
@@ -212,41 +227,71 @@ export class SolanaService implements OnModuleInit {
       );
 
       // Mint the NFT
-      const { signature, result } = await createNft(this.solanaConfig.umi, {
-        mint: collectionMint,
+      const { signature, result } = await createNft(this.sol.umi, {
+        mint: nftMintAddress,
         name: "Test Part 2 Collection #5",
         symbol: "TPC",
         uri,
-        updateAuthority: this.solanaConfig.umi.identity.publicKey,
+        updateAuthority: this.sol.umi.identity.publicKey,
         sellerFeeBasisPoints: percentAmount(0),
         collection: {
           key: collectionNftAddress,
           verified: false,
         },
-      }).sendAndConfirm(this.solanaConfig.umi, {
+      }).sendAndConfirm(this.sol.umi, {
         send: { commitment: "finalized" },
       });
 
+      Logger.log("NFT MINTED");
+
+      // Nft Mint Address
+      const nftAddress = UMIPublicKey(nftMintAddress.publicKey.toString());
+      Logger.log(nftAddress, "NFT ADDRESS");
+
+      // Verify the collection
+      const metadata = findMetadataPda(this.sol.umi, { mint: nftAddress });
+
+      Logger.log("Verify Collection");
+      await verifyCollectionV1(this.sol.umi, {
+        metadata,
+        collectionMint: collectionNftAddress,
+        authority: this.sol.umi.identity,
+      }).sendAndConfirm(this.sol.umi);
+
+      Logger.log("Collection Verified");
+      const explorerVerifyLink = getExplorerLink(
+        "address",
+        nftAddress,
+        "devnet",
+      );
+      Logger.log(`verified collection:  ${explorerVerifyLink}`);
+
       Logger.log(signature, "SIGNATURE");
       Logger.log(result, "RESULT");
-      Logger.log(collectionMint, "CollectioNMint");
+      Logger.log(nftMintAddress, "nftMintAddress");
       Logger.log("NFT created and confirmed");
+
+      //metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s
 
       const explorerLink = getExplorerLink(
         "address",
-        collectionMint.publicKey,
+        nftMintAddress.publicKey,
         "devnet",
       );
       Logger.log(`Collection NFT: ${explorerLink}`);
-      Logger.log(`Collection NFT address:`, collectionMint.publicKey);
+      Logger.log(`Collection NFT address:`, nftMintAddress.publicKey);
 
       /**
        * will create a transfer instruction for user to receive the nft
        */
 
-      return `NFT minted successfully! Mint address: ${collectionMint.publicKey.toString()}`;
+      return `NFT minted successfully! Mint address: ${nftMintAddress.publicKey.toString()}`;
     } catch (error) {
       Logger.error("Error minting NFT:", error);
+      if (error instanceof SendTransactionError) {
+        const logs = await error.getLogs(this.sol.connection);
+        Logger.error(logs);
+      }
       return "Failed to mint NFT.";
     }
   }

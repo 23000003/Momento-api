@@ -1,13 +1,14 @@
 import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
-import { SolanaModule } from "./modules/solana/solana.module";
+import { SolanaModule } from "./modules/blockchain/solana/solana.module";
 import { QuestModule } from "./modules/quest/quest.module";
 import { BlogModule } from "./modules/blog/blog.module";
 import { UserModule } from "./modules/user/user.module";
-import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
+import { MarketplaceModule } from "./modules/blockchain/marketplace/marketplace.module";
 import { ConfigModule } from "@nestjs/config";
-import { DrizzleService } from "./db/drizzle.service";
+import { Drizzle } from "./db/drizzle.service";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 
 @Module({
   imports: [
@@ -17,8 +18,9 @@ import { DrizzleService } from "./db/drizzle.service";
     BlogModule,
     UserModule,
     MarketplaceModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DrizzleService],
+  providers: [AppService, Drizzle],
 })
 export class AppModule {}
