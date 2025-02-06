@@ -7,6 +7,7 @@ import { BlogModule } from "./modules/blog/blog.module";
 import { UserModule } from "./modules/user/user.module";
 import { MarketplaceModule } from "./modules/marketplace/marketplace.module";
 import { ConfigModule } from "@nestjs/config";
+import { DrizzleService } from "./db/drizzle.service";
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { ConfigModule } from "@nestjs/config";
     MarketplaceModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, DrizzleService],
 })
 export class AppModule {}

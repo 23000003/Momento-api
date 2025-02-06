@@ -37,8 +37,35 @@ export class SolanaService implements OnModuleInit {
     this.dappATA = await this.solanaConfig.dappATA;
   }
 
-  getWalletTokenBalance(): number {
-    return 1;
+  async getWalletTokenBalance(
+    userAddress: string,
+  ): Promise<{ SOL: number; MMT: number } | string> {
+    try {
+      const getUserATA = await getOrCreateAssociatedTokenAccount(
+        this.solanaConfig.connection,
+        this.solanaConfig.dappKeyPair,
+        this.solanaConfig.mintToken,
+        new PublicKey(userAddress),
+        false,
+        "finalized",
+        {
+          skipPreflight: true,
+        },
+        TOKEN_2022_PROGRAM_ID,
+      );
+
+      const solBalance = await this.solanaConfig.connection.getBalance(
+        new PublicKey(userAddress),
+      );
+
+      return {
+        SOL: solBalance / LAMPORTS_PER_SOL,
+        MMT: Number(getUserATA.amount) / LAMPORTS_PER_SOL,
+      };
+    } catch (err) {
+      Logger.error(err);
+      return `${err} Error getting token balance`;
+    }
   }
 
   getWalletNFTHoldings(): string {
@@ -67,6 +94,8 @@ export class SolanaService implements OnModuleInit {
         },
         TOKEN_2022_PROGRAM_ID,
       );
+
+      Logger.log(sendToATA);
 
       const { blockhash } =
         await this.solanaConfig.connection.getLatestBlockhash("finalized");
@@ -128,7 +157,8 @@ export class SolanaService implements OnModuleInit {
     console.log(publicKey, image); // eslint
 
     // Test nft image url
-    const img = "https://jpeg.org/images/jpeg-home.jpg";
+    const img =
+      "https://wfiljmekszmbpzaqaxys.supabase.co/storage/v1/object/public/images//pfp.jpg";
 
     try {
       // Fetch the image from the URL
@@ -165,8 +195,8 @@ export class SolanaService implements OnModuleInit {
       Logger.log(this.solanaConfig.umi.identity.publicKey, "PUBLIC KEY");
 
       const nftMetadata = {
-        name: "Test Part 2 Collection 22",
-        description: "dwadawd description",
+        name: "Test Part 2 Collection 2232",
+        description: "dohod description",
         image: img,
       };
 
@@ -184,7 +214,7 @@ export class SolanaService implements OnModuleInit {
       // Mint the NFT
       const { signature, result } = await createNft(this.solanaConfig.umi, {
         mint: collectionMint,
-        name: "Test Part 2 Collection #4",
+        name: "Test Part 2 Collection #5",
         symbol: "TPC",
         uri,
         updateAuthority: this.solanaConfig.umi.identity.publicKey,
