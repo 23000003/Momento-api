@@ -28,6 +28,6 @@ export class SolanaController {
   @Post("mint-nft")
   async mintNFT(@Body() mintNFT: MintNFTDTO) {
     const x = await this.solanaService.mintNFT(mintNFT);
-    return { message: x };
+    return x;
   }
 }

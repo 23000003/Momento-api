@@ -4,7 +4,7 @@ import { MarketplaceController } from "./marketplace.controller";
 import { BlockchainConfigService } from "../blockchain-config.service";
 
 @Module({
-  providers: [MarketplaceService],
-  controllers: [MarketplaceController, BlockchainConfigService],
+  providers: [MarketplaceService, BlockchainConfigService],
+  controllers: [MarketplaceController],
 })
 export class MarketplaceModule {}
