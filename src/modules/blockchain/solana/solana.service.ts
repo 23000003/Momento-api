@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import {
   Account,
   createTransferCheckedInstruction,
@@ -79,14 +79,22 @@ export class SolanaService implements OnModuleInit {
         SOL: solBalance / LAMPORTS_PER_SOL,
         MMT: Number(getUserATA.amount) / LAMPORTS_PER_SOL,
       };
-    } catch (err) {
-      Logger.error(err);
-      return `${err} Error getting token balance`;
+    } catch (e: unknown) {
+      Logger.error(e);
+      throw new BadRequestException({
+        error: e instanceof Error ? e.message : e,
+        message: "Error Getting Token Balance.",
+      });
     }
   }
 
-  getWalletNFTHoldings(): string {
-    return "TWA";
+  async getWalletNFTHoldings(userAddress: string) {
+    const owner = UMIPublicKey(userAddress);
+    const assets = await this.sol.umi.rpc.getAssetsByOwner({
+      owner,
+    });
+
+    return assets;
   }
 
   async getNFTCollection(): Promise<{
@@ -97,8 +105,6 @@ export class SolanaService implements OnModuleInit {
       groupKey: "collection",
       groupValue: this.sol.collectionAddress.toString(),
     });
-
-    Logger.log(assets.total, "Total NFT Supply");
 
     return {
       collection: assets,
@@ -167,22 +173,23 @@ export class SolanaService implements OnModuleInit {
 
       const base64 = serializedTransaction.toString("base64");
       return base64;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(error);
       if (error instanceof TokenAccountNotFoundError) {
-        Logger.error(error.message, "HERE");
+        throw new BadRequestException(error);
+      } else {
+        throw new BadRequestException({
+          error: error instanceof Error ? error.message : error,
+          message: "Error Claiming Token.",
+        });
       }
-      return "Transaction Error";
     }
   }
 
-  async mintNFT(payload: MintNFTDTO): Promise<
-    | "Failed to mint NFT."
-    | {
-        message: string;
-        explorerLink: string;
-      }
-  > {
+  async mintNFT(payload: MintNFTDTO): Promise<{
+    message: string;
+    explorerLink: string;
+  }> {
     const { publicKey, image } = payload;
 
     console.log(publicKey, image); // eslint
@@ -281,17 +288,17 @@ export class SolanaService implements OnModuleInit {
         message: "NFT minted successfully!",
         explorerLink: explorerLink,
       };
-    } catch (error) {
-      Logger.error("Error minting NFT:", error);
+    } catch (error: unknown) {
       if (error instanceof SendTransactionError) {
         const logs = await error.getLogs(this.sol.connection);
         Logger.error(logs);
+        throw new BadRequestException(error);
+      } else {
+        throw new BadRequestException({
+          error: error instanceof Error ? error.message : error,
+          message: "Error Minting NFT.",
+        });
       }
-      return "Failed to mint NFT.";
     }
-  }
-
-  sellNFT(): string {
-    return "NFT";
   }
 }

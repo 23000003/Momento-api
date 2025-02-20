@@ -19,7 +19,7 @@ export class AuthGuard implements CanActivate {
     //test
     const { data } = await this.supabase
       .getSupabase()
-      .from("testusers")
+      .from("users")
       .select("*");
 
     console.log(data);
