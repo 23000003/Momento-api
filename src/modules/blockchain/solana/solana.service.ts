@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import {
   Account,
   createTransferCheckedInstruction,
@@ -20,7 +20,8 @@ import {
   // createGenericFile,
   generateSigner,
   percentAmount,
-  publicKey,
+  // sol,
+  transactionBuilder,
   publicKey as UMIPublicKey,
 } from "@metaplex-foundation/umi";
 import { getExplorerLink } from "@solana-developers/helpers";
@@ -30,9 +31,18 @@ import { Logger } from "@nestjs/common";
 // import { das } from "@metaplex-foundation/mpl-core-das";
 import {
   createNft,
+  // createV1,
   findMetadataPda,
+  // mintV1,
+  // TokenStandard,
   verifyCollectionV1,
 } from "@metaplex-foundation/mpl-token-metadata";
+import { setComputeUnitLimit } from "@metaplex-foundation/mpl-toolbox";
+// import { addMemo, createMintWithAssociatedToken, transferSol } from "@metaplex-foundation/mpl-toolbox";
+// import { toWeb3JsInstruction } from "@metaplex-foundation/umi-web3js-adapters";
+// import { mintFromCandyMachineV2 } from "@metaplex-foundation/mpl-candy-machine";
+// import { create } from "@metaplex-foundation/mpl-core";
+import { DasApiAssetList } from "@metaplex-foundation/digital-asset-standard-api";
 
 @Injectable()
 export class SolanaService implements OnModuleInit {
@@ -69,30 +79,37 @@ export class SolanaService implements OnModuleInit {
         SOL: solBalance / LAMPORTS_PER_SOL,
         MMT: Number(getUserATA.amount) / LAMPORTS_PER_SOL,
       };
-    } catch (err) {
-      Logger.error(err);
-      return `${err} Error getting token balance`;
+    } catch (e: unknown) {
+      Logger.error(e);
+      throw new BadRequestException({
+        error: e instanceof Error ? e.message : e,
+        message: "Error Getting Token Balance.",
+      });
     }
   }
 
-  getWalletNFTHoldings(): string {
-    return "TWA";
-  }
-
-  async getNFTCollection(): Promise<string> {
-    const collection = publicKey(
-      "BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8",
-    );
-
-    Logger.log(collection, "COLLECTION");
-    const assets = await this.sol.umi.rpc.getAssetsByGroup({
-      groupKey: "collection",
-      groupValue: "BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8",
+  async getWalletNFTHoldings(userAddress: string) {
+    const owner = UMIPublicKey(userAddress);
+    const assets = await this.sol.umi.rpc.getAssetsByOwner({
+      owner,
     });
 
-    Logger.log(assets, "ASSETS");
+    return assets;
+  }
 
-    return "NTAT";
+  async getNFTCollection(): Promise<{
+    collection: DasApiAssetList;
+    totalNFTs: number;
+  }> {
+    const assets = await this.sol.umi.rpc.getAssetsByGroup({
+      groupKey: "collection",
+      groupValue: this.sol.collectionAddress.toString(),
+    });
+
+    return {
+      collection: assets,
+      totalNFTs: assets.total,
+    };
   }
 
   async claimMomentoToken(payload: ClaimTokenDTO): Promise<string> {
@@ -155,123 +172,109 @@ export class SolanaService implements OnModuleInit {
       });
 
       const base64 = serializedTransaction.toString("base64");
-
-      // console.log("-------------------\n")
-      // console.log(base64)
-      // console.log("\n-------------------")
-
       return base64;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(error);
       if (error instanceof TokenAccountNotFoundError) {
-        Logger.error(error.message, "HERE");
+        throw new BadRequestException(error);
+      } else {
+        throw new BadRequestException({
+          error: error instanceof Error ? error.message : error,
+          message: "Error Claiming Token.",
+        });
       }
-      return "Transaction Error";
     }
   }
 
-  async mintNFT(payload: MintNFTDTO): Promise<string> {
+  async mintNFT(payload: MintNFTDTO): Promise<{
+    message: string;
+    explorerLink: string;
+  }> {
     const { publicKey, image } = payload;
 
     console.log(publicKey, image); // eslint
 
     // Test nft image url
     const img =
-      "https://wfiljmekszmbpzaqaxys.supabase.co/storage/v1/object/public/images//pfp.jpg";
+      "https://wfiljmekszmbpzaqaxys.supabase.co/storage/v1/object/public/images//e43b427f-70ab-48cb-8770-923563ebc74a";
 
     try {
-      Logger.log(this.sol.umi.identity.publicKey, "PUBLIC KEY");
-      // Fetch the image from the URL
-      // const res = await fetch(img);
+      const { totalNFTs } = await this.getNFTCollection();
+      Logger.log(totalNFTs, "TOTAL NFTS");
+      Logger.log(publicKey, "USER PUBLIC KEY");
 
-      // const arrayBuffer = await res.arrayBuffer();
-      // const buffer = Buffer.from(arrayBuffer);
+      const nftMetadata = {
+        name: `Test NFT #${totalNFTs + 1}`,
+        description: "WASSUP MY FRIEND",
+        image: img,
+        attributes: [
+          {
+            trait_type: "trait1",
+            value: "value1",
+          },
+          {
+            trait_type: "trait2",
+            value: "value2",
+          },
+        ],
+      };
 
-      Logger.log("Convert image");
-      // Logger.log(buffer, "BUFFER");
-      // Create a generic file for upload
-      // const file = createGenericFile(buffer, "test-image.jpg", {
-      //     contentType: "image/jpeg",
-      // });
-
-      Logger.log("Generic file created");
-
-      // const [imageUMI] = await this.sol.umi.uploader.upload([file]);
-
-      Logger.log("Image uploaded to UMI");
-
-      // const uri = await this.sol.umi.uploader.uploadJson({
-      //     name: "My Collection",
-      //     description: "My Collection description",
-      //     image: imageUMI, // Use the uploaded image URI
-      // });
+      Logger.log("Metadata JSON uploading");
+      const uri = await this.sol.umi.uploader.uploadJson(nftMetadata);
 
       // Unique mintAddress for the nft
       const nftMintAddress = generateSigner(this.sol.umi);
 
-      const nftMetadata = {
-        name: "VERIFY IT #@#",
-        description: "WASSUPP",
-        image: img,
-      };
-
-      Logger.log("Metadata JSON uploading");
-
-      const uri = await this.sol.umi.uploader.uploadJson(nftMetadata);
-
-      Logger.log(uri, "MINT");
-
-      // Dummy NFT collection
-      const collectionNftAddress = UMIPublicKey(
-        "BQsupfq2mB8WYgmQczCKLbMT1tz3JDBbTsFEENdy4uT8",
-      );
-
-      // Mint the NFT
-      const { signature, result } = await createNft(this.sol.umi, {
-        mint: nftMintAddress,
-        name: "Test Part 2 Collection #5",
-        symbol: "TPC",
-        uri,
-        updateAuthority: this.sol.umi.identity.publicKey,
-        sellerFeeBasisPoints: percentAmount(0),
-        collection: {
-          key: collectionNftAddress,
-          verified: false,
-        },
-      }).sendAndConfirm(this.sol.umi, {
-        send: { commitment: "finalized" },
-      });
-
-      Logger.log("NFT MINTED");
-
-      // Nft Mint Address
+      // Nft Address
       const nftAddress = UMIPublicKey(nftMintAddress.publicKey.toString());
       Logger.log(nftAddress, "NFT ADDRESS");
 
-      // Verify the collection
-      const metadata = findMetadataPda(this.sol.umi, { mint: nftAddress });
+      // collection PDA
+      const collectionPDA = findMetadataPda(this.sol.umi, { mint: nftAddress });
 
-      Logger.log("Verify Collection");
-      await verifyCollectionV1(this.sol.umi, {
-        metadata,
-        collectionMint: collectionNftAddress,
-        authority: this.sol.umi.identity,
-      }).sendAndConfirm(this.sol.umi);
+      Logger.log("Build Transaction");
+      const builder = transactionBuilder()
+        .add(setComputeUnitLimit(this.sol.umi, { units: 800_000 }))
+        .add(
+          createNft(this.sol.umi, {
+            // mint nft
+            mint: nftMintAddress,
+            name: "Test Part 2 Collection #5",
+            symbol: "TPC",
+            uri,
+            updateAuthority: this.sol.umi.identity.publicKey,
+            sellerFeeBasisPoints: percentAmount(0),
+            tokenOwner: UMIPublicKey(publicKey),
+            collection: {
+              key: this.sol.collectionAddress,
+              verified: false,
+            },
+          }),
+        )
+        .add(
+          verifyCollectionV1(this.sol.umi, {
+            // verify nft to nft collection
+            metadata: collectionPDA,
+            collectionMint: this.sol.collectionAddress,
+            authority: this.sol.umi.identity,
+          }),
+        );
 
-      Logger.log("Collection Verified");
-      const explorerVerifyLink = getExplorerLink(
-        "address",
-        nftAddress,
-        "devnet",
-      );
-      Logger.log(`verified collection:  ${explorerVerifyLink}`);
+      Logger.log("Send Transaction");
+      const { signature, result } = await builder.sendAndConfirm(this.sol.umi, {
+        send: {
+          skipPreflight: true,
+          commitment: "finalized",
+        },
+      });
 
+      Logger.log("NFT MINTED");
       Logger.log(signature, "SIGNATURE");
       Logger.log(result, "RESULT");
       Logger.log(nftMintAddress, "nftMintAddress");
       Logger.log("NFT created and confirmed");
 
-      //metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s
+      // //metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s
 
       const explorerLink = getExplorerLink(
         "address",
@@ -281,22 +284,21 @@ export class SolanaService implements OnModuleInit {
       Logger.log(`Collection NFT: ${explorerLink}`);
       Logger.log(`Collection NFT address:`, nftMintAddress.publicKey);
 
-      /**
-       * will create a transfer instruction for user to receive the nft
-       */
-
-      return `NFT minted successfully! Mint address: ${nftMintAddress.publicKey.toString()}`;
-    } catch (error) {
-      Logger.error("Error minting NFT:", error);
+      return {
+        message: "NFT minted successfully!",
+        explorerLink: explorerLink,
+      };
+    } catch (error: unknown) {
       if (error instanceof SendTransactionError) {
         const logs = await error.getLogs(this.sol.connection);
         Logger.error(logs);
+        throw new BadRequestException(error);
+      } else {
+        throw new BadRequestException({
+          error: error instanceof Error ? error.message : error,
+          message: "Error Minting NFT.",
+        });
       }
-      return "Failed to mint NFT.";
     }
-  }
-
-  sellNFT(): string {
-    return "NFT";
   }
 }

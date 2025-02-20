@@ -58,6 +58,18 @@ export const escrowTable = pgTable("escrow", {
   escrowAt: timestamp("escrow_at"),
 });
 
+// Track marketplace data since theres no marketplace api for devnet
+export const marketplaceTable = pgTable("marketplace", {
+  marketId: serial("market_id").primaryKey(),
+  nftAddress: text("nft_id").notNull(),
+  listedByAddress: text("listed_by").notNull(),
+  price: integer("price").notNull(),
+  isSold: boolean("is_sold").default(false),
+  listedAt: timestamp("listed_at"),
+  soldAt: timestamp("sold_at"),
+  soldToAddress: text("sold_to"),
+});
+
 export type GetBlogSchema = typeof blogsTable.$inferSelect;
 export type InsertBlogSchema = typeof blogsTable.$inferInsert;
 // ====================
@@ -69,3 +81,6 @@ export type InsertEscrowSchema = typeof escrowTable.$inferInsert;
 // ====================
 export type InsertUserSchema = typeof usersTable.$inferInsert;
 export type GetUserSchema = typeof usersTable.$inferSelect;
+// ====================
+export type GetMarketplaceSchema = typeof marketplaceTable.$inferSelect;
+export type InsertMarketplaceSchema = typeof marketplaceTable.$inferInsert;
