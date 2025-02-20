@@ -65,7 +65,7 @@ export const marketplaceTable = pgTable("marketplace", {
   listedByAddress: text("listed_by").notNull(),
   price: integer("price").notNull(),
   isSold: boolean("is_sold").default(false),
-  listedAt: timestamp("listed_at").default(new Date()),
+  listedAt: timestamp("listed_at"),
   soldAt: timestamp("sold_at"),
   soldToAddress: text("sold_to"),
 });
