@@ -24,7 +24,5 @@ export class BuyNFTDTO extends DelistNFTDTO {
   @ApiProperty()
   buyerAddress: string;
   @ApiProperty()
-  mpId: number;
-  @ApiProperty()
   price: number;
 }

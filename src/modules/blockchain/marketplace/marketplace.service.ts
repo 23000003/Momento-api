@@ -176,8 +176,8 @@ export class MarketplaceService {
     }
   }
 
-  async buyNFT(payload: BuyNFTDTO) {
-    const { mpId, price, nftAddress, listedByAddress, buyerAddress } = payload;
+  async buyNFT(mpId: number, payload: BuyNFTDTO): Promise<string> {
+    const { price, nftAddress, listedByAddress, buyerAddress } = payload;
 
     // const nftAddress = "4HRrEmFDrDeSCLtvAaRAzGAqLr1vbUfh4AXgqzUcaw1D";
     // const listedByAddress = "EBmwY3ecpy1oD8ohqAk6xJCwEbi344XxVvyxoEq5cAyY";
@@ -239,6 +239,7 @@ export class MarketplaceService {
   }
 
   async delistNFT(
+    mpId: number,
     payload: DelistNFTDTO,
   ): Promise<{ message: string } | string> {
     const { nftAddress, listedByAddress } = payload;
@@ -258,7 +259,7 @@ export class MarketplaceService {
       await this.db
         .getDrizzleDB()
         .delete(marketplaceTable)
-        .where(eq(marketplaceTable.nftAddress, nftAddress));
+        .where(eq(marketplaceTable.marketId, mpId));
 
       return {
         message: "NFT delisted successfully",
